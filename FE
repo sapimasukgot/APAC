@@ -1,0 +1,449 @@
+//RootLayout.jsx
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider, 
+} from "@react-navigation/native";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import "react-native-reanimated";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import LoadingScreenAwal from "../LoadingScreenAwal";
+
+export default function RootLayout() {
+  const colorScheme = useColorScheme();
+  const [loaded] = useFonts({
+    SpaceMono: require("../../assets/fonts/SpaceMono-Regular.ttf"),
+  });
+
+  if (!loaded) return <LoadingScreenAwal/>;
+  const backgroundColor = colorScheme === "dark" ? "#000":"#fff"
+  return (
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <Stack>
+      <Stack.Screen name="/app/Opening" options={{headerShown: false}} />
+      <Stack.Screen name="Awal" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <StatusBar style="auto" />
+    </ThemeProvider>
+  );
+}
+
+//LoadingScreen.jsx
+import React from "react-native"
+import { View, ActivityIndicator,StyleSheet,Text } from "react-native"
+
+export default function LoadingScreenAwal(){
+    return(
+        <View>
+            <ActivityIndicator size ="large" />
+            <Text StyleSheet ={style.text}>SABAR</Text>
+        </View>
+    )
+}
+const style = StyleSheet.create({
+    text: {
+        fontSize: 300,
+        alignContent: 'center',
+        textAlign:"center",
+        justifyContent: "center",
+        height: 1000,
+        width: 5000
+    }
+})
+
+//Awal.jsx
+import React, { useEffect } from "react";
+import Opening from "../Opening";
+import LoginScreen from "../LoginScreen";
+import Xplore from "../xplore.jsx";
+import { NavigationContainer, NavigationIndependentTree } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+
+
+const Stack = createNativeStackNavigator();
+export default function Awal(){
+    return(
+        <NavigationIndependentTree>
+            <NavigationContainer>
+                <Stack.Navigator 
+                    initialRouteName="Opening" 
+                    screenOptions={{
+                        headerShown: false  
+                    }}
+                >
+                    <Stack.Screen name="Opening" component={Opening}/>
+                    <Stack.Screen name="Login" component={LoginScreen} />
+                    <Stack.Screen name="xplore" component={Xplore}/>                    
+                </Stack.Navigator>
+            </NavigationContainer>
+        </NavigationIndependentTree>
+    )
+}
+
+//Xplore.jsx
+import React, { useState } from 'react';
+import { SafeAreaView, FlatList, TextInput, Button, View, Text, StyleSheet } from 'react-native';
+
+export default function Xplore() {
+  const [messages, setMessages] = useState([
+    { id: 0, sender: 'ai', text: 'Hello! How can I help you today?' }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const getDummyAIResponse = (userInput) => {
+    if (userInput.toLowerCase().includes('hello')) {
+      return "ello";
+    } else if (userInput.toLowerCase().includes('how are you')) {
+      return "lu siapa jir";
+    } else {
+      return "blm bs ye";
+    }
+  };
+
+  const sendMessage = () => {
+    if (!input.trim()) return;
+
+    const userMessage = { id: messages.length, sender: 'user', text: input };
+    setMessages([...messages, userMessage]);
+    setInput('');
+    setLoading(true);
+
+    setTimeout(() => {
+      const aiReply = getDummyAIResponse(input);
+      const aiMessage = {
+        id: messages.length + 1,
+        sender: 'ai',
+        text: aiReply,
+      };
+      setMessages(prev => [...prev, aiMessage]);
+      setLoading(false);
+    }, 1000);
+  };
+
+  const renderItem = ({ item }) => (
+    <View
+      style={[
+        styles.message,
+        item.sender === 'user' ? styles.userMessage : styles.aiMessage,
+      ]}
+    >
+      <Text>{item.text}</Text>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderItem}
+        contentContainerStyle={styles.chatContainer}
+      />
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Type a message..."
+        />
+        <Button title={loading ? "..." : "Send"} onPress={sendMessage} disabled={loading} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  chatContainer: { padding: 10 },
+  message: {
+    padding: 10,
+    marginVertical: 4,
+    maxWidth: '80%',
+    borderRadius: 10,
+  },
+  userMessage: {
+    backgroundColor: '#DCF8C6',
+    alignSelf: 'flex-end',
+  },
+  aiMessage: {
+    backgroundColor: '#ECECEC',
+    alignSelf: 'flex-start',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    padding: 10,
+    borderTopColor: '#ddd',
+    borderTopWidth: 1,
+  },
+  input: {
+    flex: 1,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    marginRight: 10,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+}); 
+
+//Opening.jsx
+import React, { useRef, useState } from "react";
+import {Text,View,FlatList,ScrollView,Dimensions,StyleSheet,
+} from "react-native";
+import LoginScreen from "./LoginScreen";
+
+const { width } = Dimensions.get("window");
+
+const slides = [
+  { key: "1", title: "Halo", content: "bbbbb" },
+  { key: "2", title: "hal 2", content: "bbbbbbbb" },
+  { key: "3", title: "hal 3", content: "nbvfthnbvfgyhjn" },
+  { key: "4", title: "hal 4", content: "nbvfrtyjkgf" },
+  { key: "5", isLogin: true },
+];
+
+export default function Opening() {
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const handleScroll = (event) => {
+    const offSetX = event.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offSetX / width);
+    setCurrentPage(pageIndex);
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <FlatList
+        data={slides}
+        keyExtractor={(item) => item.key}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        renderItem={({ item }) => {
+          if (item.isLogin) {
+            return (
+              <View style={{ width }}>
+                <LoginScreen />
+              </View>
+            );
+          }
+          return (
+            <ScrollView
+              contentContainerStyle={{
+                width,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 20,
+              }}
+            >
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.content}>{item.content}</Text>
+            </ScrollView>
+          );
+        }}
+      />
+      <View style={styles.pagination}>
+        {slides.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.dot,
+              { opacity: index === currentPage ? 1 : 0.3 },
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "black",
+    marginBottom: 10,
+  },
+  content: {
+    fontSize: 16,
+    color: "black",
+    textAlign: "center",
+  },
+  pagination: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingVertical: 10,
+  },
+  dot: {
+    height: 10,
+    width: 10,
+    borderRadius: 5,
+    backgroundColor: "black",
+    margin: 5,
+  },
+});
+
+//LoginScreen.jsx
+import {View,Text,StyleSheet,Alert,TextInput,
+  Linking,TouchableOpacity,ScrollView,KeyboardAvoidingView,Platform,Modal,Pressable,
+} from "react-native";
+import React, { useState } from "react";
+import { useRouter } from "expo-router";
+
+const Pelanggan = [
+  { nama: "Jason", password: "t" },
+];
+
+export default function LoginScreen() {
+  const [nama, setNama] = useState("");
+  const [password, setPassword] = useState("");
+  const [showModal,setShowModal] = useState(false);
+  const [udahAccBg, setUdahAccBg] = useState (false);
+  const rout = useRouter();
+
+  const handleLogin = () => {
+    const pengguna = Pelanggan.find(
+      (x) => x.nama === nama && x.password === password
+    );
+    if (pengguna) {
+      Alert.alert("Selamat", "Anda berhasil login", [
+        { text: "OK", onPress: () => rout.push("/xplore") },
+      ]);
+    } else {
+      Alert.alert("Gagal", "Anda gagal login");
+    }
+  };
+   
+  const handleRegister = () =>{
+    if(!udahAccBg){
+      setShowModal(true)
+      setUdahAccBg(true)
+    }
+  }
+  const handleRegisterModal = () =>{
+    setShowModal(false)
+  }
+  const setujuBg = () => {
+    Alert.alert(onPress=()=>rout.push("/LoginScreen"))
+  }
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "" ? "padding" : undefined}
+    >
+      
+      <ScrollView contentContainerStyle={style.container}>
+        <Text style={style.text}>Kocak Lu</Text>
+
+        <TextInput
+          style={style.input}
+          placeholder="nama"
+          onChangeText={setNama}
+          value={nama}
+        />
+        <TextInput
+          style={style.input}
+          placeholder="password"
+          secureTextEntry
+          onChangeText={setPassword}
+          value={password}
+        />
+
+        <TouchableOpacity style={style.button} onPress={handleLogin}>
+          <Text style={style.buttonText}>Login</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[style.button, { backgroundColor: "green" }]}
+          onPress={handleRegister}
+        >
+          <Text style={style.buttonText}>Create Account</Text>
+        </TouchableOpacity>
+        <Modal
+  animationType="slide"
+  transparent={true}
+  visible={showModal}
+  onRequestClose={() => setShowModal(false)}
+>
+  <View style={{
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  }}>
+    <View style={{
+      backgroundColor: 'white',
+      padding: 30,
+      borderRadius: 10,
+      width: '80%',
+      alignItems: 'center'
+    }}>
+      <ScrollView>
+      <Text style={{ fontWeight: "bold", fontSize: 18 }}>Terms and Conditions</Text>
+      <Text style={{ marginVertical: 10, textAlign: "center" }}>
+        LO HARUS SETUJU TYTYD LO KECIL 
+      </Text>
+      <Pressable
+        onPress={handleRegisterModal}
+        style={{
+          marginTop: 10,
+          backgroundColor: "#2196F3",
+          paddingVertical: 10,
+          paddingHorizontal: 20,
+          borderRadius: 5,
+        }}
+      >
+               <Text style={{ color: "white", fontWeight: "bold" }}>Iyh bg</Text>
+            </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>s
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const style = StyleSheet.create({
+  container: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    backgroundColor: "#fff",
+  },
+  text: {
+    color: "black",
+    fontSize: 32,
+    marginBottom: 20,
+  },
+  input: {
+    width: "100%",
+    color: "black",
+    fontSize: 18,
+    padding: 10,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+  },
+  button: {
+    width: "80%",
+    padding: 12,
+    marginTop: 10,
+    backgroundColor: "#2196F3",
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: "white",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+});
