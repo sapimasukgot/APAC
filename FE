@@ -97,7 +97,7 @@ export default function Awal(){
     )
 }
 
-//Opening  .jsx
+//Operation.jsx
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Button, FlatList, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -234,7 +234,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -276,11 +276,17 @@ export default function Index() {
           if (item.isLogin) {
             return (
               <View style={{ width, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <Text styles={styles.MegaText}>WELCOME</Text>
                 <TouchableOpacity 
                   style={styles.loginButton}
                   onPress={handleSkip}
                 >
-                  <Text style={styles.loginButtonText}>Go to Login</Text>
+                  <Text style={styles.loginButtonText}>Login</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.createButton}
+                    >
+                      <Text style={styles.loginButtonText} onPress={onPress=()=>{router.push("/create-account")}}>Create Account</Text>              
                 </TouchableOpacity>
               </View>
             );
@@ -364,7 +370,60 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     fontSize: 16,
-  }
+  },
+  createButton:{
+    backgroundColor: 'green',
+    padding: 15,
+    borderRadius: 10,
+    width: '80%',
+    },
+  MegaText:{
+    fontSize: 48,
+    textAlign: 'center',
+  },
+  createButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    backgroundColor: "white",
+    padding: 20,
+    borderRadius: 10,
+    width: "90%",
+    maxHeight: "80%",
+  },
+  modalContent: {
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontWeight: "bold",
+    fontSize: 18,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  modalText: {
+    marginVertical: 10,
+    textAlign: "center",
+  },
+  agreeButton: {
+    marginTop: 10,
+    backgroundColor: "#2196F3",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  agreeButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
 });
 
 //explore.jsx
@@ -375,9 +434,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -391,8 +448,7 @@ const Pelanggan = [
 export default function LoginScreen() {
   const [nama, setNama] = useState("");
   const [password, setPassword] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [udahAccBg, setUdahAccBg] = useState(false);
+  const [showModal, setShowModal] = useState(false); 
   const router = useRouter();
 
   const handleLogin = () => {
@@ -401,47 +457,30 @@ export default function LoginScreen() {
     );
     if (pengguna) {
       Alert.alert("Selamat", "Anda berhasil login", [
-        { text: "OK", onPress: () => router.push("/Operation") }, // Make sure Operation exists in app directory
+        { text: "OK", onPress: () => router.push("/Operation") }, 
       ]);
     } else {
-      Alert.alert("Gagal", "Anda gagal login");
+      setShowModal(true); 
     }
   };
-   
-  const handleRegister = () => {
-    if(!udahAccBg){
-      setShowModal(true);
-      setUdahAccBg(true);
-    }
-  };
-  
-  const handleRegisterModal = () => {
-    setShowModal(false);
-  };
-  
-  const setujuBg = () => {
-    Alert.alert("Notice", "Action completed", [
-      { text: "OK", onPress: () => router.push("/explore") }
-    ]);
-  };
-  
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={style.container}>
-        <Text style={style.text}>Kocak Lu</Text>
+        <Text style={style.text}>Login Page</Text>
 
         <TextInput
           style={style.input}
-          placeholder="nama"
+          placeholder="Nama"
           onChangeText={setNama}
           value={nama}
         />
         <TextInput
           style={style.input}
-          placeholder="password"
+          placeholder="Password"
           secureTextEntry
           onChangeText={setPassword}
           value={password}
@@ -451,50 +490,19 @@ export default function LoginScreen() {
           <Text style={style.buttonText}>Login</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[style.button, { backgroundColor: "green" }]}
-          onPress={handleRegister}
-        >
-          <Text style={style.buttonText}>Create Account</Text>
-        </TouchableOpacity>
-        
         <Modal
           animationType="slide"
           transparent={true}
           visible={showModal}
           onRequestClose={() => setShowModal(false)}
         >
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}>
-            <View style={{
-              backgroundColor: 'white',
-              padding: 30,
-              borderRadius: 10,
-              width: '80%',
-              alignItems: 'center'
-            }}>
-              <ScrollView>
-                <Text style={{ fontWeight: "bold", fontSize: 18 }}>Terms and Conditions</Text>
-                <Text style={{ marginVertical: 10, textAlign: "center" }}>
-                  LO HARUS SETUJU TYTYD LO KECIL 
-                </Text>
-                <Pressable
-                  onPress={handleRegisterModal}
-                  style={{
-                    marginTop: 10,
-                    backgroundColor: "#2196F3",
-                    paddingVertical: 10,
-                    paddingHorizontal: 20,
-                    borderRadius: 5,
-                  }}
-                >
-                  <Text style={{ color: "white", fontWeight: "bold" }}>Iyh bg</Text>
-                </Pressable>
-              </ScrollView>
+          <View style={style.modalOverlay}>
+            <View style={style.modalContent}>
+              <Text style={style.modalTitle}>Login Gagal!</Text>
+              <Text style={{ marginBottom: 20 }}>Nama atau password salah.</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)}>
+                <Text style={style.modalCloseText}>Tutup</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -503,41 +511,184 @@ export default function LoginScreen() {
   );
 }
 
-const style = StyleSheet.create({
+const style = {
   container: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 40,
-    backgroundColor: "#fff",
+    padding: 20,
+    backgroundColor: "#f5f5f5"
   },
   text: {
-    color: "black",
-    fontSize: 32,
-    marginBottom: 20,
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20
   },
   input: {
     width: "100%",
-    color: "black",
-    fontSize: 18,
-    padding: 10,
-    marginVertical: 10,
+    height: 50,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 8,
-    backgroundColor: "#fff",
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    backgroundColor: "#fff"
   },
   button: {
-    width: "80%",
-    padding: 12,
-    marginTop: 10,
-    backgroundColor: "#2196F3",
+    backgroundColor: "#007AFF",
+    paddingVertical: 15,
     borderRadius: 8,
+    width: "100%"
   },
   buttonText: {
-    color: "white",
-    textAlign: "center",
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "bold",
+    textAlign: "center"
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    padding: 25,
+    borderRadius: 10,
+    width: "80%",
+    alignItems: "center"
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 10
+  },
+  modalCloseText: {
+    color: "#007AFF",
+    fontWeight: "bold",
+    fontSize: 16
+  }
+};
+
+//create-account.jsx
+import React, { useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+export default function createAccount() {
+  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleSignup = () => {
+    if (!emailOrPhone || !password || !confirmPassword) {
+      Alert.alert('Error', 'Semua kolom harus diisi.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Password dan konfirmasi tidak cocok.');
+      return;
+    }
+
+    Alert.alert('Berhasil', 'Akun berhasil dibuat (dummy).');
+  };
+
+  const handleGoogleLogin = () => {
+   
+    Alert.alert('Login Google', 'Login dengan Google (dummy).');
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Buat Akun</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Email atau Nomor Telepon"
+        onChangeText={setEmailOrPhone}
+        value={emailOrPhone}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        onChangeText={setPassword}
+        value={password}
+        secureTextEntry
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Konfirmasi Password"
+        onChangeText={setConfirmPassword}
+        value={confirmPassword}
+        secureTextEntry
+      />
+
+      <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
+        <Text style={styles.signupText}>Daftar</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.orText}>Atau</Text>
+
+      <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
+        <Text style={styles.googleText}>Login dengan Google</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  input: {
+    height: 50,
+    borderColor: '#aaa',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+  },
+  signupButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  signupText: {
+    color: 'white',
+    textAlign: 'center',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  orText: {
+    textAlign: 'center',
+    marginVertical: 20,
+    color: '#555',
+  },
+  googleButton: {
+    borderWidth: 1,
+    borderColor: '#888',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  googleText: {
+    textAlign: 'center',
+    color: '#444',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
