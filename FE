@@ -1,14 +1,10 @@
-//RootLayout.jsx
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider, 
-} from "@react-navigation/native";
+//_layout.jsx
+import { useColorScheme } from "@/hooks/useColorScheme";
+import { ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
-import { useColorScheme } from "@/hooks/useColorScheme";
 import LoadingScreenAwal from "../LoadingScreenAwal";
 
 export default function RootLayout() {
@@ -18,13 +14,15 @@ export default function RootLayout() {
   });
 
   if (!loaded) return <LoadingScreenAwal/>;
-  const backgroundColor = colorScheme === "dark" ? "#000":"#fff"
+  const backgroundColor = colorScheme === "dark" ? "#000":"#fff";
+  
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={backgroundColor}>
       <Stack>
-      <Stack.Screen name="/app/Opening" options={{headerShown: false}} />
-      <Stack.Screen name="Awal" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="index" options={{headerShown: false}} />
+        <Stack.Screen name="explore" options={{ headerShown: false }} />
+        <Stack.Screen name="Operation" options={{ headerShown: false }} />
+        <Stack.Screen name="not-found" options={{ title: 'Oops!' }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
@@ -32,35 +30,50 @@ export default function RootLayout() {
 }
 
 //LoadingScreenAwal.jsx
-import React from "react-native"
-import { View, ActivityIndicator,StyleSheet,Text } from "react-native"
+import { useRouter } from "expo-router";
+import React, { useEffect } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-export default function LoadingScreenAwal(){
-    return(
-        <View>
-            <ActivityIndicator size ="large" />
-            <Text StyleSheet ={style.text}>SABAR</Text>
-        </View>
-    )
+export default function LoadingScreenAwal() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const loadingTime = setTimeout(() => {
+      router.replace("/index");
+    }, 3000);
+    return () => clearTimeout(loadingTime);
+  }, []);
+  
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color="#2196F3" />
+      <Text style={styles.text}>SABAR</Text>
+    </View>
+  );
 }
-const style = StyleSheet.create({
-    text: {
-        fontSize: 300,
-        alignContent: 'center',
-        textAlign:"center",
-        justifyContent: "center",
-        height: 1000,
-        width: 5000
-    }
-})
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  text: {
+    fontSize: 24,
+    marginTop: 20,
+    fontWeight: 'bold',
+  }
+});
 
 //Awal.jsx
-import React, { useEffect } from "react";
-import Opening from "../Opening";
-import LoginScreen from "../LoginScreen";
-import Xplore from "../xplore.jsx";
 import { NavigationContainer, NavigationIndependentTree } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React from "react";
+import LoginScreen from "../explore";
+import index from "../index";
+import LoadingScreenAwal from "../LoadingScreenAwal";
+import Operation from "../Operation.jsx";
 
 
 const Stack = createNativeStackNavigator();
@@ -69,25 +82,28 @@ export default function Awal(){
         <NavigationIndependentTree>
             <NavigationContainer>
                 <Stack.Navigator 
-                    initialRouteName="Opening" 
+                    initialRouteName="LoadingScreenAwal" 
                     screenOptions={{
                         headerShown: false  
                     }}
                 >
-                    <Stack.Screen name="Opening" component={Opening}/>
-                    <Stack.Screen name="Login" component={LoginScreen} />
-                    <Stack.Screen name="xplore" component={Xplore}/>                    
+                    <Stack.Screen name="LoadingScreenAwal" component={LoadingScreenAwal} />
+                    <Stack.Screen name="index" component={index}/>
+                    <Stack.Screen name="explore" component={LoginScreen} />
+                    <Stack.Screen name="Operation" component={Operation}/>                    
                 </Stack.Navigator>
             </NavigationContainer>
         </NavigationIndependentTree>
     )
 }
 
-//Xplore.jsx
+//Opening  .jsx
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { SafeAreaView, FlatList, TextInput, Button, View, Text, StyleSheet } from 'react-native';
+import { Button, FlatList, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-export default function Xplore() {
+export default function Operation() {
+  const router = useRouter();
   const [messages, setMessages] = useState([
     { id: 0, sender: 'ai', text: 'Hello! How can I help you today?' }
   ]);
@@ -96,11 +112,11 @@ export default function Xplore() {
 
   const getDummyAIResponse = (userInput) => {
     if (userInput.toLowerCase().includes('hello')) {
-      return "ello";
+      return 'Hello there! Nice to meet you.';
     } else if (userInput.toLowerCase().includes('how are you')) {
-      return "lu siapa jir";
+      return 'I\'m doing well, thank you for asking!';
     } else {
-      return "blm bs ye";
+      return 'I\'m still learning to respond to that. Can you try something else?';
     }
   };
 
@@ -137,12 +153,19 @@ export default function Xplore() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Button title="Back" onPress={() => router.back()} />
+        <Text style={styles.headerTitle}>Chat Assistant</Text>
+        <View style={{width: 50}} />
+      </View>
+      
       <FlatList
         data={messages}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.chatContainer}
       />
+      
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
@@ -158,6 +181,18 @@ export default function Xplore() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   chatContainer: { padding: 10 },
   message: {
     padding: 10,
@@ -187,13 +222,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 5,
   },
-}); 
+});
 
-//Opening.jsx
-import React, { useRef, useState } from "react";
-import {Text,View,FlatList,ScrollView,Dimensions,StyleSheet,
+//Index.jsx
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  Dimensions,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import LoginScreen from "./LoginScreen";
 
 const { width } = Dimensions.get("window");
 
@@ -205,13 +247,18 @@ const slides = [
   { key: "5", isLogin: true },
 ];
 
-export default function Opening() {
+export default function Index() {
   const [currentPage, setCurrentPage] = useState(0);
+  const router = useRouter();
 
   const handleScroll = (event) => {
     const offSetX = event.nativeEvent.contentOffset.x;
     const pageIndex = Math.round(offSetX / width);
     setCurrentPage(pageIndex);
+  };
+
+  const handleSkip = () => {
+    router.push("/explore");
   };
 
   return (
@@ -224,11 +271,17 @@ export default function Opening() {
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        initialScrollIndex={0}
         renderItem={({ item }) => {
           if (item.isLogin) {
             return (
-              <View style={{ width }}>
-                <LoginScreen />
+              <View style={{ width, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <TouchableOpacity 
+                  style={styles.loginButton}
+                  onPress={handleSkip}
+                >
+                  <Text style={styles.loginButtonText}>Go to Login</Text>
+                </TouchableOpacity>
               </View>
             );
           }
@@ -258,6 +311,10 @@ export default function Opening() {
           />
         ))}
       </View>
+      
+      <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+        <Text style={styles.skipButtonText}>Skip</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -286,14 +343,46 @@ const styles = StyleSheet.create({
     backgroundColor: "black",
     margin: 5,
   },
+  skipButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    padding: 10,
+  },
+  skipButtonText: {
+    color: 'blue',
+    fontWeight: 'bold',
+  },
+  loginButton: {
+    backgroundColor: '#2196F3',
+    padding: 15,
+    borderRadius: 10,
+    width: '80%',
+  },
+  loginButtonText: {
+    color: 'white',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 16,
+  }
 });
 
-//LoginScreen.jsx
-import {View,Text,StyleSheet,Alert,TextInput,
-  Linking,TouchableOpacity,ScrollView,KeyboardAvoidingView,Platform,Modal,Pressable,
-} from "react-native";
-import React, { useState } from "react";
+//explore.jsx
 import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
 
 const Pelanggan = [
   { nama: "Jason", password: "t" },
@@ -302,9 +391,9 @@ const Pelanggan = [
 export default function LoginScreen() {
   const [nama, setNama] = useState("");
   const [password, setPassword] = useState("");
-  const [showModal,setShowModal] = useState(false);
-  const [udahAccBg, setUdahAccBg] = useState (false);
-  const rout = useRouter();
+  const [showModal, setShowModal] = useState(false);
+  const [udahAccBg, setUdahAccBg] = useState(false);
+  const router = useRouter();
 
   const handleLogin = () => {
     const pengguna = Pelanggan.find(
@@ -312,31 +401,35 @@ export default function LoginScreen() {
     );
     if (pengguna) {
       Alert.alert("Selamat", "Anda berhasil login", [
-        { text: "OK", onPress: () => rout.push("/xplore") },
+        { text: "OK", onPress: () => router.push("/Operation") }, // Make sure Operation exists in app directory
       ]);
     } else {
       Alert.alert("Gagal", "Anda gagal login");
     }
   };
    
-  const handleRegister = () =>{
+  const handleRegister = () => {
     if(!udahAccBg){
-      setShowModal(true)
-      setUdahAccBg(true)
+      setShowModal(true);
+      setUdahAccBg(true);
     }
-  }
-  const handleRegisterModal = () =>{
-    setShowModal(false)
-  }
+  };
+  
+  const handleRegisterModal = () => {
+    setShowModal(false);
+  };
+  
   const setujuBg = () => {
-    Alert.alert(onPress=()=>rout.push("/LoginScreen"))
-  }
+    Alert.alert("Notice", "Action completed", [
+      { text: "OK", onPress: () => router.push("/explore") }
+    ]);
+  };
+  
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === "" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      
       <ScrollView contentContainerStyle={style.container}>
         <Text style={style.text}>Kocak Lu</Text>
 
@@ -364,46 +457,47 @@ export default function LoginScreen() {
         >
           <Text style={style.buttonText}>Create Account</Text>
         </TouchableOpacity>
+        
         <Modal
-  animationType="slide"
-  transparent={true}
-  visible={showModal}
-  onRequestClose={() => setShowModal(false)}
->
-  <View style={{
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  }}>
-    <View style={{
-      backgroundColor: 'white',
-      padding: 30,
-      borderRadius: 10,
-      width: '80%',
-      alignItems: 'center'
-    }}>
-      <ScrollView>
-      <Text style={{ fontWeight: "bold", fontSize: 18 }}>Terms and Conditions</Text>
-      <Text style={{ marginVertical: 10, textAlign: "center" }}>
-        LO HARUS SETUJU TYTYD LO KECIL 
-      </Text>
-      <Pressable
-        onPress={handleRegisterModal}
-        style={{
-          marginTop: 10,
-          backgroundColor: "#2196F3",
-          paddingVertical: 10,
-          paddingHorizontal: 20,
-          borderRadius: 5,
-        }}
-      >
-               <Text style={{ color: "white", fontWeight: "bold" }}>Iyh bg</Text>
-            </Pressable>
-            </ScrollView>
+          animationType="slide"
+          transparent={true}
+          visible={showModal}
+          onRequestClose={() => setShowModal(false)}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <View style={{
+              backgroundColor: 'white',
+              padding: 30,
+              borderRadius: 10,
+              width: '80%',
+              alignItems: 'center'
+            }}>
+              <ScrollView>
+                <Text style={{ fontWeight: "bold", fontSize: 18 }}>Terms and Conditions</Text>
+                <Text style={{ marginVertical: 10, textAlign: "center" }}>
+                  LO HARUS SETUJU TYTYD LO KECIL 
+                </Text>
+                <Pressable
+                  onPress={handleRegisterModal}
+                  style={{
+                    marginTop: 10,
+                    backgroundColor: "#2196F3",
+                    paddingVertical: 10,
+                    paddingHorizontal: 20,
+                    borderRadius: 5,
+                  }}
+                >
+                  <Text style={{ color: "white", fontWeight: "bold" }}>Iyh bg</Text>
+                </Pressable>
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>s
+        </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
