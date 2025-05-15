@@ -1,216 +1,172 @@
-from enum import unique
 from enum import Enum
+from datetime import datetime
+import uuid
+import time
+import secrets
 import bcrypt
 import re
 
-
-from sqlalchemy import null
 from config import db
 
 EMAIL_REGEX = re.compile(r"[^@]+@[^@]+\.[^@]+")
 
+def generate_timestamped_id():
+    return f"ACC_{int(time.time())}_{secrets.token_hex(5)}"
+
+def generate_timestamped_session_id():
+    return f"SESSION_{int(time.time())}_{secrets.token_hex(3)}"
+
+def encrypt_id(id):
+    return uuid.uuid4(id).hex
+
+def decrypt_id(encrypted_id):
+    return uuid.UUID(encrypted_id).int
+
+
 class Account(db.Model):
-    __tablename__ = "accounts"
-    
-    id = db.Column(db.Integer, primary_key=True)
-    _email = db.Column('email', db.String(80), unique=True, nullable=False)
-    _password = db.Column("password", db.LargeBinary(128), nullable=False)
-    _full_name = db.Column('fullName', db.String(50), unique=False)
-    _location = db.Column('location', db.String(100), unique=False)
-    _linkedIn = db.Column('LinkedIn', db.String(100), unique=True)
-     
+    __tablename__ = "account"
+
+    id = db.Column(db.String(35), primary_key=True, default=generate_timestamped_id)
+    email = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128))
+    full_name = db.Column(db.String(50))
+    location = db.Column(db.String(100))
+    linkedIn = db.Column(db.String(100))
+
+    businesses = db.relationship("Business", backref="account", lazy=True)
+
+    def __init__(self, email, password=None, full_name=None, location=None, linkedIn=None):
+        self.email = email
+        self.full_name = full_name
+        self.location = location
+        self.linkedIn = linkedIn
+        if password:
+            self.set_password(password)
+
+    def set_password(self, raw_password):
+        if not raw_password or len(raw_password) < 6:
+            raise ValueError("Password must be at least 6 characters")
+        if isinstance(raw_password, bytes):
+            raw_password = raw_password.decode("utf-8")  # ensure it’s a string
+        self.password_hash = bcrypt.hashpw(raw_password.encode("utf-8"), bcrypt.gensalt())
+
+    def verify_password(self, raw_password):
+        return bcrypt.checkpw(raw_password.encode("utf-8"), self.password_hash)
+
     def to_json(self):
         return {
             "id": self.id,
-            "email": self._email,
-            "password":self._password,
-            "full_name": self._full_name,
-            "location": self._location,
-            "linkedIn": self._linkedIn
+            "email": self.email,
+            "full_name": self.full_name,
+            "location": self.location,
+            "linkedIn": self.linkedIn
         }
-        
+
     def from_json(self, json):
-        self._id = json["id"]
-        self._email = json["email"]
-        self._password = json["password"]
-        self._full_name = json["full_name"]
-        self._location = json["location"]
-        
+        self.email = json.get("email")
+        self.full_name = json.get("full_name")
+        self.location = json.get("location")
+        self.linkedIn = json.get("linkedIn")
         return self
-    
-    # getter
-    @property
-    def id(self):
-        return self.id
-    
-    @property
-    def email(self):
-        return self._email
-    
-    @property
-    def password(self):
-        raise AttributeError("Password is write-only")
-    
-    @property
-    def full_name(self):
-        return self._full_name
-    
-    @property
-    def location(self):
-        return self._location
-    
-    @property
-    def linkedIn(self):
-        return self._linkedIn
-    
-    # setter
-    @id.setter
-    def id(self, value):
-        self.id = value
-    
-    @email.setter
-    def email(self, value):
-        if not EMAIL_REGEX.match(value):
-            raise ValueError("Invalid email address.")
-        self._email = value.lower()
-    
-    @full_name.setter
-    def full_name(self, value):
-        if not value or len(value) < 2:
-            raise ValueError("Full name must be at least 2 characters.")
-        self._full_name = value.strip()
-    
-    @location.setter
-    def location(self, value):
-        self._location = value.strip()
-        
-    @linkedIn.setter
-    def linkedin(self, value):
-        self._linkedin = value.strip()
-        
-    @password.setter
-    def password(self, raw_password):
-        if len(raw_password) < 6:
-            raise ValueError("Password must be at least 6 characters")
-        self._password = bcrypt.hashpw(raw_password.encode("utf-8"), bcrypt.gensalt())
 
-    def verify_password(self, raw_password):
-        return bcrypt.checkpw(raw_password.encode("utf-8"), self._password)
-
-    businesses = db.relationship('business', backref='account',  lazy=True)
-        
 class ScaleRole(Enum):
     Small = "Small"
     Medium = "Medium"
     Large = "Large"
-        
+
 class Business(db.Model):
     __tablename__ = "businesses"
-    _id = db.Column("id", db.Integer, primary_key=True)
-    _name = db.Column("name", db.String(120), nullable=False)
-    _description = db.Column("description", db.Text)
-    _country = db.Column("country", db.String(50))
-    _website = db.Column("website", db.String(200))
-    _size = db.Column("size", db.String(50))
-    _categories = db.Column("categories", db.String(120))
-    _owner_id = db.Column("owner_id", db.Integer, db.ForeignKey("user_profiles.id"), nullable=False)
 
-    owner = db.relationship("UserProfile", backref="businesses")
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text)
+    country = db.Column(db.String(50))
+    website = db.Column(db.String(200))
+    size = db.Column(db.String(50))
+    categories = db.Column(db.String(120))
+    owner_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False)
+
+    products = db.relationship("Product", backref="business", lazy=True)
 
     def to_json(self):
         return {
-            "id": self._id,
-            "name": self._name,
-            "description": self._description,
-            "country": self._country,
-            "website": self._website,
-            "size": self._size,
-            "categories": self._categories,
-            "owner": self._owner_id
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "country": self.country,
+            "website": self.website,
+            "size": self.size,
+            "categories": self.categories,
+            "owner_id": self.owner_id
         }
-        
+
     def from_json(self, json):
-        self._id = json["id"]
-        self._name = json["name"]
-        
-        
+        self.name = json.get("name")
+        self.description = json.get("description")
+        self.country = json.get("country")
+        self.website = json.get("website")
+        self.size = json.get("size")
+        self.categories = json.get("categories")
+        self.owner_id = json.get("owner_id")
         return self
-    
-    @property
-    def id(self): return self._id
-
-    @property
-    def name(self): return self._name
-    @name.setter
-    def name(self, value):
-        if not value:
-            raise ValueError("Business name is required.")
-        self._name = value.strip()
-
-    @property
-    def description(self): return self._description or ""
-    @description.setter
-    def description(self, value):
-        self._description = value.strip()
-
-    @property
-    def website(self): return self._website
-    @website.setter
-    def website(self, value):
-        if value and not value.startswith("http"):
-            raise ValueError("Invalid website URL.")
-        self._website = value
-
-    @property
-    def country(self): return self._country
-    @country.setter
-    def country(self, value):
-        self._country = value
-
-    @property
-    def size(self): return self._size
-    @size.setter
-    def size(self, value):
-        self._size = value
-
-    @property
-    def categories(self): return self._categories
-    @categories.setter
-    def categories(self, value):
-        self._categories = value
-
 
 class Product(db.Model):
     __tablename__ = "products"
-    _id = db.Column("id", db.Integer, primary_key=True)
-    _name = db.Column("name", db.String(120), nullable=False)
-    _description = db.Column("description", db.Text)
-    _image_url = db.Column("image_url", db.String(200))
-    _business_id = db.Column("business_id", db.Integer, db.ForeignKey("businesses.id"), nullable=False)
 
-    business = db.relationship("Business", backref="products")
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text)
+    image_url = db.Column(db.String(200))
+    business_id = db.Column(db.Integer, db.ForeignKey("businesses.id"), nullable=False)
 
-    @property
-    def id(self): return self._id
+    def to_json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "image_url": self.image_url,
+            "business_id": self.business_id
+        }
 
-    @property
-    def name(self): return self._name
-    @name.setter
-    def name(self, value):
-        if not value:
-            raise ValueError("Product name is required.")
-        self._name = value.strip()
+    def from_json(self, json):
+        self.name = json.get("name")
+        self.description = json.get("description")
+        self.image_url = json.get("image_url")
+        self.business_id = json.get("business_id")
+        return self
 
-    @property
-    def description(self): return self._description or ""
-    @description.setter
-    def description(self, value):
-        self._description = value.strip()
+class ChatMessage(db.Model):
+    __tablename__ = "chat_messages"
 
-    @property
-    def image_url(self): return self._image_url
-    @image_url.setter
-    def image_url(self, value):
-        if value and not value.startswith("http"):
-            raise ValueError("Invalid image URL.")
-        self._image_url = value
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(64), nullable=False)
+    message = db.Column(db.Text)
+    sender_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sender = db.relationship("Account", foreign_keys=[sender_id])
+    receiver = db.relationship("Account", foreign_keys=[receiver_id])
+
+    def to_json(self):
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "message": self.message,
+            "sender": self.sender_id,
+            "receiver": self.receiver_id,
+            "timestamp": self.timestamp.isoformat()
+        }
+
+    def from_json(self, json):
+        self.session_id = json.get("session_id")
+        self.message = json.get("message")
+        self.sender_id = json.get("sender")
+        self.receiver_id = json.get("receiver")
+        return self
+
+    @staticmethod
+    def create(sender_id, session_id, receiver_id, message):
+        chat_message = ChatMessage(sender_id=sender_id, session_id=session_id, receiver_id=receiver_id, message=message)
+        db.session.add(chat_message)
+        db.session.commit()

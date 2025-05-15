@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
-from .models import Business, Product, UserProfile
-from . import db
+from .models import Business, Product, Account
+from app import encrypt_id, decrypt_id
+from config import db
 
 main = Blueprint("main", __name__)
 
@@ -8,55 +9,62 @@ main = Blueprint("main", __name__)
 def ping():
     return jsonify({"message": "pong", "status": "ok"})
 
-@main.route("/register", methods=["POST"])
+
+@main.route("/create-account", methods=["POST"])
 def register():
     data = request.get_json()
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "").strip()
+    email = data.get("email").strip()
+    password = data.get("password").strip()
 
     if not email or not password:
         return jsonify({"message": "Email and password are required."}), 400
 
-    if len(password) < 6:
+    if not password or len(password) < 6:
         return jsonify({"message": "Password must be at least 6 characters."}), 400
 
-    if UserProfile.query.filter_by(_email=email).first():
+    if Account.query.filter_by(email=email).first():
         return jsonify({"message": "Email already registered."}), 409
 
     try:
-        new_user = UserProfile()
-        new_user.email = email
-        new_user.password = password  # will hash it via model
-        new_user.full_name = "New User"
+        new_user = Account(email=email, password=password)
         db.session.add(new_user)
         db.session.commit()
 
-        return jsonify({"message": "Account created successfully."}), 201
+        return jsonify({
+            "message": "Account created successfully.",
+            "email": new_user.email
+            }), 201
 
     except Exception as e:
         db.session.rollback()
         print("Error:", e)
         return jsonify({"message": "Server error occurred."}), 500
 
-@main.route("/profile/<int:user_id>", methods=["GET"])
+
+@main.route("/profile/<string:user_id>", methods=["GET"])
 def get_profile(user_id):
-    user = UserProfile.query.get_or_404(user_id)
+    user = Account.query.get_or_404(user_id)
+    
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    
     return jsonify({
+        "id": user.id,
         "full_name": user.full_name,
         "location": user.location,
         "email": user.email,
-        "linkedin": user.linkedin
+        "linkedin": user.linkedIn
     })
 
 @main.route("/profile", methods=["POST"])
-def create_or_update_profile():
+def update_profile():
     data = request.get_json()
-    user = UserProfile.query.filter_by(email=data.get("email")).first()
+    user = Account.query.filter_by(email=data.get("email")).first()
     if not user:
-        user = UserProfile(email=data["email"])
-    user.full_name = data.get("full_name")
-    user.location = data.get("location")
-    user.linkedin = data.get("linkedin")
+        user = Account(email=data["email"])
+    user.full_name = data.get("full_name", user.full_name)
+    user.location = data.get("location", user.location)
+    user.linkedin = data.get("linkedin", user.linkedin)
     db.session.add(user)
     db.session.commit()
     return jsonify({"message": "Profile saved", "user_id": user.id})
@@ -67,23 +75,16 @@ def login():
     email = data.get("email")
     password = data.get("password")
     
-    user = UserProfile.query.filter_by(email=email).first()
-    if user and user.verify_password(password):
-        return jsonify({"success": True, "message": "Login successful", "user_id": user.id})
+    user = Account.query.filter_by(email=email).first()
     
-    return jsonify({"success": False, "message": "Invalid credentials"}), 401
-
-@main.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "").strip()
-
-    user = UserProfile.query.filter_by(_email=email).first()
-    if not user or not user.verify_password(password):
-        return jsonify({"success": False, "message": "Invalid credentials"}), 401
-
-    return jsonify({"success": True, "message": "Login successful", "user_id": user.id})
+    if not user:
+        return jsonify({"success": False, "message": "User not found"}), 404
+    
+    if user.verify_password(password):
+        return jsonify({"success": True, "message": "Login successful", "user_id": user.id})
+    else :
+        return jsonify({"success": False, "message": "Invalid password", "user_id": user.id, "email": user.email, "password": str(user.verify_password(user.password))}), 401
+    
 
 @main.route("/business/<int:biz_id>", methods=["GET"])
 def get_business(biz_id):
