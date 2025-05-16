@@ -62,9 +62,19 @@ def get_gemini_response(session_id, user_message, num_history=30):
         traceback.print_exc()
         return "An error occurred while trying to get a response from AI."
 
+
 @chat_blueprint.route("/cached-session-id", methods=["GET"])
 def get_cached_session_id():
-    return jsonify({"session_id": session.get("cached_session_id", None)}), 200
+    """Returns the user's cached session_id from Flask session."""
+    print("Request received at /chat/cached-session-id")
+    
+    session_id = session.get("session_id")
+    
+    # test session_id for dummy
+    if not session_id:
+        return jsonify({"session_id": "5qewrew"}), 200
+    
+    return jsonify({"session_id": session_id}), 200
 
 @chat_blueprint.route("/lumea_page/<string:session_id>/history", methods=["GET"])
 def chat_history(session_id):
@@ -86,7 +96,7 @@ def chat_history(session_id):
     return jsonify([msg.to_json() for msg in all_msgs])
 
 @chat_blueprint.route("/lumea_page/<string:session_id>/send", methods=["POST"])
-def chat():
+def chat(session_id):
     """Sends a message to the chat and receives a response from the AI.
     
     POST /lumea_page/send
@@ -103,7 +113,7 @@ def chat():
     
     data = request.get_json()
     
-    session_id = data.get("session_id")
+    session_id = session_id
     user_id = data.get("user_id")
     user_message = data.get("message")
 
@@ -127,9 +137,11 @@ def chat():
         # Get AI response
         ai_reply = get_gemini_response(session_id, user_message)
 
+        formatted_ai_reply = f"{ai_reply}"
+
         ai_msg = ChatMessageAI(
             session_id=session_id,
-            message=ai_reply,
+            message=formatted_ai_reply,
             user_message_id=user_msg.id
         )
         db.session.add(ai_msg)
@@ -137,12 +149,17 @@ def chat():
         
         return jsonify({
             "user": user_msg.to_json(),
-            "ai": ai_msg.to_json()
+            "ai": ai_msg.to_json(),
+            "session_id": session_id  # Include session_id in the response if needed
         }), 201
+
         
     except Exception as e:
         print("Gemini error:", e)
+        traceback.print_exc()
+        db.session.rollback()  # Rollback changes in case of error
         return jsonify({"error": "Internal server error"}), 500
+
     
 @chat_blueprint.route("/lumea_page/<string:session_id>/clear", methods=["DELETE"])
 def clear_chat(session_id):
@@ -150,3 +167,7 @@ def clear_chat(session_id):
     ChatMessageAI.query.filter_by(session_id=session_id).delete()
     db.session.commit()
     return jsonify({"message": "Chat cleared"}), 200
+
+@chat_blueprint.route("/debug/session", methods=["GET"])
+def debug_session():
+    return jsonify(dict(session)), 200

@@ -5,6 +5,25 @@ from app.util import encrypt_id, decrypt_id
 
 profile_blueprint = Blueprint("profile", __name__)
 
+@profile_blueprint.route("/get-profile", methods=["GET"])
+def get_profile():
+    user = db.session.query(Account).first()
+
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    return jsonify(
+        {
+            "user_id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "session_id": user.session_id,
+            "location": user.location,
+            "linkedin": user.linkedIn,
+            "businesses": [biz.to_json() for biz in user.businesses],
+        }
+    )
+
 @profile_blueprint.route("/profile/<string:encrypted_user_id>", methods=["GET", "PATCH"])
 def profile(encrypted_user_id):
     user = Account.query.filter_by(id=decrypt_id(encrypted_user_id)).first()

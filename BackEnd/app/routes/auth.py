@@ -9,6 +9,15 @@ auth_blueprint = Blueprint("auth_bp", __name__)
 
 GOOGLE_TOKEN_INFO = "https://www.googleapis.com/oauth2/v3/tokeninfo"
 
+@auth_blueprint.route("/set-session")
+def set_session(session_id):
+    session["session_id"] = session_id
+    return "Session set!"
+
+@auth_blueprint.route("/get-session")
+def get_session():
+    return session.get("session_id", "No session found.")
+
 @auth_blueprint.route("/signup", methods=["POST"])
 def register():
     data = request.get_json()
@@ -31,6 +40,9 @@ def register():
 
     try:
         new_user = Account(email=email, password=password)
+        set_session(new_user.session_id)
+        if get_session() != new_user.session_id:
+            return jsonify({"success": False, "message": "Failed to create session"}), 401
         db.session.add(new_user)
         db.session.flush()
 
@@ -137,7 +149,10 @@ def login():
         return jsonify({"success": False, "message": "User not found"}), 404
     if user.verify_password(password):
         
-        session["session_id"] = user.session_id
+        set_session(user.session_id)
+        if get_session() != user.session_id:
+            return jsonify({"success": False, "message": "Failed to create session"}), 401
+        
         return jsonify(
             {"success": True, "message": "Login successful", "user_id": user.id}
         )

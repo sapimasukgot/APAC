@@ -1,2 +1,5 @@
 # database
 app/instance/database.db
+
+# .env
+.env
