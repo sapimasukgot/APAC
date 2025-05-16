@@ -16,11 +16,15 @@ def generate_timestamped_id():
 def generate_timestamped_chat_id():
     return f"MSG_{int(time.time())}_{uuid.uuid4().hex[:8]}"
 
+def generate_account_session_id():
+    return f"ACSESS_{int(time.time())}_{secrets.token_hex(12)}"
+
 class Account(db.Model):
     __tablename__ = "account"
 
     id = db.Column(db.String(35), primary_key=True, default=generate_timestamped_id)
     email = db.Column(db.String(80), unique=True, nullable=False)
+    session_id = db.Column(db.String(50), default=generate_timestamped_id)
     password_hash = db.Column(db.String(128))
     full_name = db.Column(db.String(50))
     location = db.Column(db.String(100))

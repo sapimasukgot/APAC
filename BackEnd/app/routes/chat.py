@@ -2,7 +2,7 @@ import traceback
 import google.generativeai as genai
 from google.genai import types
 from dotenv import load_dotenv
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from ..models import ChatMessageAI, ChatMessageUser
 from configure import db
 
@@ -62,7 +62,11 @@ def get_gemini_response(session_id, user_message, num_history=30):
         traceback.print_exc()
         return "An error occurred while trying to get a response from AI."
 
-@chat_blueprint.route("/lumea_page/history/<string:session_id>", methods=["GET"])
+@chat_blueprint.route("/cached-session-id", methods=["GET"])
+def get_cached_session_id():
+    return jsonify({"session_id": session.get("cached_session_id", None)}), 200
+
+@chat_blueprint.route("/lumea_page/<string:session_id>/history", methods=["GET"])
 def chat_history(session_id):
     """Get the chat history for the given session_id.
     
@@ -81,7 +85,7 @@ def chat_history(session_id):
 
     return jsonify([msg.to_json() for msg in all_msgs])
 
-@chat_blueprint.route("/lumea_page/send", methods=["POST"])
+@chat_blueprint.route("/lumea_page/<string:session_id>/send", methods=["POST"])
 def chat():
     """Sends a message to the chat and receives a response from the AI.
     
@@ -140,7 +144,7 @@ def chat():
         print("Gemini error:", e)
         return jsonify({"error": "Internal server error"}), 500
     
-@chat_blueprint.route("/lumea_page/clear/<string:session_id>", methods=["DELETE"])
+@chat_blueprint.route("/lumea_page/<string:session_id>/clear", methods=["DELETE"])
 def clear_chat(session_id):
     ChatMessageUser.query.filter_by(session_id=session_id).delete()
     ChatMessageAI.query.filter_by(session_id=session_id).delete()

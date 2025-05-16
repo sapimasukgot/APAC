@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from ..models import Account, Business
 from configure import db
+from app.util import encrypt_id
 import requests
 import bcrypt
 
@@ -105,6 +106,25 @@ def google_auth():
         print("Google login error:", e)
         return jsonify({"success": False, "message": "Login failed"}), 500
 
+@auth_blueprint.route("/login", methods=["GET"])
+def get_login_info():
+    data = request.args
+    user = Account.query.filter_by(email=data.get("email")).first()
+    
+    if not user:
+        return jsonify({"success": False, "message": "User not found"}), 404
+
+    return jsonify({
+        "success": True, 
+        "user_id": user.id, 
+        "email": user.email, 
+        "session_id": user.session_id,
+        "full_name": user.full_name, 
+        "location": user.location, 
+        "linkedIn": user.linkedIn, 
+        "businesses": [biz.to_json() for biz in user.businesses]
+        }), 200
+
 @auth_blueprint.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -116,6 +136,8 @@ def login():
     if not user:
         return jsonify({"success": False, "message": "User not found"}), 404
     if user.verify_password(password):
+        
+        session["session_id"] = user.session_id
         return jsonify(
             {"success": True, "message": "Login successful", "user_id": user.id}
         )
