@@ -13,15 +13,8 @@ EMAIL_REGEX = re.compile(r"[^@]+@[^@]+\.[^@]+")
 def generate_timestamped_id():
     return f"ACC_{int(time.time())}_{secrets.token_hex(5)}"
 
-def generate_timestamped_session_id():
-    return f"SESSION_{int(time.time())}_{secrets.token_hex(3)}"
-
-def encrypt_id(id):
-    return uuid.uuid4(id).hex
-
-def decrypt_id(encrypted_id):
-    return uuid.UUID(encrypted_id).int
-
+def generate_timestamped_chat_id():
+    return f"MSG_{int(time.time())}_{uuid.uuid4().hex[:8]}"
 
 class Account(db.Model):
     __tablename__ = "account"
@@ -69,7 +62,7 @@ class Account(db.Model):
         self.linkedIn = json.get("linkedIn")
         return self
 
-class ScaleRole(Enum):
+class Scale(Enum):
     Small = "Small"
     Medium = "Medium"
     Large = "Large"
@@ -82,11 +75,13 @@ class Business(db.Model):
     description = db.Column(db.Text)
     country = db.Column(db.String(50))
     website = db.Column(db.String(200))
-    size = db.Column(db.String(50))
+    scale = db.Column(db.String(50))
     categories = db.Column(db.String(120))
+    
     owner_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False)
 
     products = db.relationship("Product", backref="business", lazy=True)
+    
 
     def to_json(self):
         return {
@@ -95,7 +90,7 @@ class Business(db.Model):
             "description": self.description,
             "country": self.country,
             "website": self.website,
-            "size": self.size,
+            "scale": self.scale,
             "categories": self.categories,
             "owner_id": self.owner_id
         }
@@ -105,9 +100,8 @@ class Business(db.Model):
         self.description = json.get("description")
         self.country = json.get("country")
         self.website = json.get("website")
-        self.size = json.get("size")
-        self.categories = json.get("categories")
-        self.owner_id = json.get("owner_id")
+        self.scale = json.get("scale")
+        self.categories = json.get("categories"),
         return self
 
 class Product(db.Model):
@@ -117,6 +111,7 @@ class Product(db.Model):
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.Text)
     image_url = db.Column(db.String(200))
+    
     business_id = db.Column(db.Integer, db.ForeignKey("businesses.id"), nullable=False)
 
     def to_json(self):
@@ -135,19 +130,39 @@ class Product(db.Model):
         self.business_id = json.get("business_id")
         return self
 
-class ChatMessage(db.Model):
-    __tablename__ = "chat_messages"
+class ChatMessageAI(db.Model):
+    __tablename__ = "chat_ai_messages"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String, default=generate_timestamped_chat_id, primary_key=True)
+    session_id = db.Column(db.String(64), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user_message_id = db.Column(db.String, db.ForeignKey("chat_user_messages.id"), nullable=False)
+    
+    user_message = db.relationship("ChatMessageUser", back_populates="ai_replies")
+    
+    def to_json(self):
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "message": self.message,
+            "sender": "ai",
+            "timestamp": self.timestamp.isoformat()
+        }
+
+class ChatMessageUser(db.Model):
+    __tablename__ = "chat_user_messages"
+
+    id = db.Column(db.String, default=generate_timestamped_chat_id, primary_key=True)
     session_id = db.Column(db.String(64), nullable=False)
     message = db.Column(db.Text)
-    sender_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False)
+    sender_id = db.Column(db.String(64))
+    receiver_id = db.Column(db.String(64))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
-    sender = db.relationship("Account", foreign_keys=[sender_id])
-    receiver = db.relationship("Account", foreign_keys=[receiver_id])
-
+    
+    ai_replies = db.relationship("ChatMessageAI", back_populates="user_message")
+    
     def to_json(self):
         return {
             "id": self.id,
@@ -165,8 +180,3 @@ class ChatMessage(db.Model):
         self.receiver_id = json.get("receiver")
         return self
 
-    @staticmethod
-    def create(sender_id, session_id, receiver_id, message):
-        chat_message = ChatMessage(sender_id=sender_id, session_id=session_id, receiver_id=receiver_id, message=message)
-        db.session.add(chat_message)
-        db.session.commit()

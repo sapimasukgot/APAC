@@ -1,43 +1,147 @@
+import os
+import pathlib
+import requests
+import traceback
+import time
 import google.generativeai as genai
+from google.genai import types
+from dotenv import load_dotenv
 from flask import Blueprint, request, jsonify
-from .models import ChatMessage
+from .models import ChatMessageAI, ChatMessageUser
 from config import db
 
+load_dotenv()
 chat_blueprint = Blueprint("chat", __name__)
 
-# Setup Gemini (you can load this from env later)
 genai.configure(api_key="AIzaSyCdfYSd-EiqT8fFev6DiLKDgRR-Zo0vKLs")
-model = genai.GenerativeModel("gemini-2.0-flash")
 
-@chat_blueprint.route("/chat/<string:user_id>/<string:session_id>", methods=["POST"])
-def chat(user_id, session_id):
+def get_gemini_response(session_id, user_message, num_history=30):
+    """
+    Queries Gemini AI to get a response to the given user message,
+    considering the last num_history messages in the conversation.
+
+    Args:
+        session_id (str): The id of the chat session.
+        user_message (str): The message typed by the user.
+        num_history (int, optional): The number of past messages to consider. Defaults to 30.
+
+    Returns:
+        str: The response from the AI.
+    """
+
+    try:
+        previous_user_msgs = ChatMessageUser.query.filter_by(session_id=session_id).order_by(ChatMessageUser.timestamp).limit(num_history).all()
+        previous_ai_msgs = ChatMessageAI.query.filter_by(session_id=session_id).order_by(ChatMessageAI.timestamp).limit(num_history).all()
+        
+        all_msg = previous_user_msgs + previous_ai_msgs
+        all_msgs = sorted(all_msg, key=lambda x: x.timestamp)
+        
+        past_conversation = ""
+        for msg in all_msgs:
+            sender = msg.sender_id if hasattr(msg, "sender_id") else "AI"
+            past_conversation += f"{sender}: {msg.message}\n"
+        
+        full_prompt = f"""
+                        You are a helpful assistant. Here is the user's chat history:
+
+                        {past_conversation}
+
+                        Remember this context when responding, but don't repeat it unless necessary.
+
+                        Present conversation:
+                        User: {user_message}
+                        AI:
+                        """
+        
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = model.generate_content(full_prompt)
+        
+        if response.text:
+            return response.text
+        else:
+            return "Failed to get AI response"
+        
+    except Exception as e:
+        print("Gemini Error:", e)
+        traceback.print_exc()
+        return "An error occurred while trying to get a response from AI."
+
+@chat_blueprint.route("/lumea_page/history/<session_id>", methods=["GET"])
+def chat_history(session_id):
+    """Get the chat history for the given session_id.
+    
+    Returns a JSON object of a list of messages, where each message is a JSON object with the following keys:
+        id: string
+        session_id: string
+        message: string
+        sender: string (either "user" or "AI")
+        timestamp: datetime string in ISO 8601 format
+    """
+    user_msgs = ChatMessageUser.query.filter_by(session_id=session_id).all()
+    ai_msgs = ChatMessageAI.query.filter_by(session_id=session_id).all()
+
+    all_msgs = [*user_msgs, *ai_msgs]
+    all_msgs.sort(key=lambda x: x.timestamp)
+
+    return jsonify([msg.to_json() for msg in all_msgs])
+
+@chat_blueprint.route("/lumea_page/send", methods=["POST"])
+def chat():
+    """Sends a message to the chat and receives a response from the AI.
+    
+    POST /lumea_page/send
+    {
+        "session_id": string,
+        "user_id": string,
+        "message": string
+    }
+    
+    Returns a JSON object with two keys: "user" and "ai". The value of "user" is the user's message, and the value of "ai" is the AI's response.
+    
+    If the request is invalid, returns a JSON object with an "error" key. If the AI fails to respond, returns a JSON object with an "error" key and a 500 status code.
+    """
+    
     data = request.get_json()
-    user_message = data.get("message", "").strip()
+    
+    session_id = data.get("session_id")
+    user_id = data.get("user_id")
+    user_message = data.get("message")
 
     if not user_message:
         return jsonify({"error": "Empty message"}), 400
 
-    # for bot / AI id -> 0
+    if not session_id:
+        return jsonify({"error": "Missing session_id"}), 400
+    
     try:
-        sender_id = user_id
-        new_user_message_log = ChatMessage(sender_id=sender_id, session_id=session_id, receiver_id=0, message=user_message)
-        db.session.add(new_user_message_log)
-        db.session.commit()
+        # Save user message first
+        user_msg = ChatMessageUser(
+            session_id=session_id,
+            message=user_message,
+            sender_id=user_id,
+            receiver_id="ai"
+        )
+        db.session.add(user_msg)
+        db.session.flush()
 
-    except Exception as e:
-        print("Something error with chat:", e)
-        return jsonify({"error": "Failed to save chat message"}), 500
+        # Get AI response
+        ai_reply = get_gemini_response(session_id, user_message)
 
-    try:
-        response = model.generate_content(user_message)
-        response_text = response.text.strip()
-        
-        new_bot_message_log = ChatMessage(sender_id=0, session_id=session_id, receiver_id=user_id, message=response_text)
-        db.session.add(new_bot_message_log)
+        ai_msg = ChatMessageAI(
+            session_id=session_id,
+            message=ai_reply,
+            user_message_id=user_msg.id
+        )
+        db.session.add(ai_msg)
         db.session.commit()
         
-        return jsonify({"reply": response_text})
+        return jsonify({
+            "user": user_msg.to_json(),
+            "ai": ai_msg.to_json()
+        }), 201
+        
     except Exception as e:
         print("Gemini error:", e)
-        return jsonify({"error": "Failed to get AI response"}), 500
+        return jsonify({"error": "Internal server error"}), 500
     
+
