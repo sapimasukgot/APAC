@@ -6,7 +6,7 @@ import secrets
 import bcrypt
 import re
 
-from config import db
+from configure import db
 
 EMAIL_REGEX = re.compile(r"[^@]+@[^@]+\.[^@]+")
 
